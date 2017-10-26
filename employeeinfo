@@ -1,0 +1,373 @@
+------GENERATING RANDOM RECORDS:  large list with 500,000 records, small list with 27 records
+-----------------Emily Kading-------------------------------------
+------------------------------------------------------
+---------GENERATING 500,000 RANDOM RECORDS
+-----TAKES ~ 1 minute
+---------------------NAME-----------------------------
+----FIRST NAMES AND LAST NAMES GENERATOR TAKES 4 seconds to do both at once ----
+BEGIN
+	DROP TABLE #firstname									
+	CREATE TABLE #firstname                 
+		(firstname VARCHAR(50), listnumber INT IDENTITY(1,1))
+	   
+	DECLARE @Counter1 INT = 0										
+	WHILE @Counter1 < 10000										     
+		BEGIN
+			INSERT INTO #firstname (firstname)			
+			SELECT fname FROM randomfnamelist ORDER BY NEWID()			
+			SET @Counter1 = @Counter1 + 1									
+		END															
+
+	DROP TABLE #lastname								
+	CREATE TABLE #lastname
+		(lastname VARCHAR(50),listnumber INT IDENTITY(1,1))
+	     
+	DECLARE @Counter2 INT = 0										
+	WHILE @Counter2 < 10										    
+		BEGIN
+			INSERT INTO #lastname (lastname)				
+			SELECT lname FROM randomlnamelist ORDER BY NEWID()			
+			SET @Counter2 = @Counter2 + 1								
+		END
+
+	DROP TABLE #firstlastname
+	SELECT * INTO #firstlastname									
+	FROM
+		(SELECT f.firstname + ' ' + l.lastname AS name
+		,f.listnumber
+		 FROM #firstname f JOIN #lastname l				
+		 ON l.listnumber = f.listnumber) d							
+
+---------------------DONE WITH NAME--------------------------------
+-----
+-----
+---------------------STREET ADDRESS----------------------------- 
+---Generating street number + street address takes 13 seconds.
+---Generate street name from list of random names (randomstreetnames)
+	DROP TABLE #streetaddy								
+	CREATE TABLE #streetaddy               
+		(streetname VARCHAR(50), listnumber INT IDENTITY(1,1))   
+
+	DECLARE @Counter3 INT = 0										
+	WHILE @Counter3 < 10000									     
+		BEGIN
+			INSERT INTO #streetaddy (streetname)			
+			SELECT streetname FROM randomstreetnames ORDER BY NEWID()		
+			SET @Counter3 = @Counter3 + 1									
+		END				
+													
+ 
+	DROP TABLE #streetnumber									
+	CREATE TABLE #streetnumber
+		(streetnumber VARCHAR(6),listnumber INT IDENTITY(1,1))
+	     
+	DECLARE @Counter4 INT = 0										
+	WHILE @Counter4 < 500000										
+		BEGIN
+			INSERT INTO #streetnumber (streetnumber)				
+			VALUES (CAST(ROUND(RAND()*10000,0,0) AS VARCHAR(6))) 	
+			SET @Counter4 = @Counter4 + 1								
+		END
+
+
+	DROP TABLE #address
+	SELECT * INTO #address
+	FROM								
+		(SELECT s.streetnumber + ' ' + a.streetname AS address
+			  ,s.listnumber
+		 FROM #streetaddy a JOIN #streetnumber s				
+		 ON a.listnumber = s.listnumber) d 				
+   			
+---------------------DONE WITH STREET ADDRESS-------------------
+------
+------
+------
+---------------------CITY STATE----------------------------- 
+----GENERATING CITY AND STATE DATA
+	DROP TABLE #citystate									
+	CREATE TABLE #citystate 
+	  (cityname VARCHAR(100), stateinitial VARCHAR(2)
+	  ,listnumber INT IDENTITY(1,1))	
+  	
+	DECLARE @Counter5 INT = 0										
+	WHILE @Counter5 < 19231										
+		BEGIN
+			INSERT INTO #citystate (cityname, stateinitial)
+			SELECT cityname, stateinitial FROM citylist ORDER BY NEWID()			----select random hockey team name from list
+			SET @Counter5 = @Counter5 + 1
+		END
+
+---------------------DONE WITH CITY STATE-------------------
+----
+----
+---------------------BIRTHDAY INFO-------------------
+	DROP TABLE	  #bday								    			
+	CREATE TABLE  #bday							
+		(birthday DATE, listnumber INT IDENTITY(1,1))	
+			
+	DECLARE  @Counter6 INT = 0
+			 ,@MaxRecordCount2 INT = 500000						
+	WHILE @Counter6 < @MaxRecordCount2								
+		BEGIN
+			INSERT INTO #bday
+			SELECT DATEADD(											
+					 d												
+					,ROUND(											 
+						DATEDIFF(d,'1950-01-01','2000-12-31')							
+						*RAND(), 0	)																															
+					,'1950-01-01') AS  birthday			
+			SET @Counter6 = @Counter6 + 1
+		END
+
+		
+---------------------DONE WITH CITY STATE-------------------
+----
+----
+---------------------COMBINE ALL INFO IN ONE TABLE-------------------
+	DROP TABLE #combinedata
+	SELECT * INTO #combinedata 
+		FROM 
+			(SELECT f.name AS 'Name'
+			,address AS 'Address' 
+			,c.cityname AS 'City'
+			,c.stateinitial AS 'State'
+			,b.birthday  AS 'Birthdate'
+  
+	  FROM #firstlastname f 
+		JOIN #address s ON f.listnumber=s.listnumber
+		JOIN #citystate c ON c.listnumber = f.listnumber
+		JOIN #bday b ON b.listnumber = f.listnumber
+			) d
+
+	DROP TABLE EmilyLgDataTable
+	SELECT * INTO EmilyLgDataTable FROM #combinedata
+END
+
+-----------------------------------------------------------------------
+-----------------------------------------------------------------------
+---NOW, ADD RANDOM DUPLICATE RECORDS.  FIND DUPLICATE RECORDS. DELETE DUPLICATE RECORDS.
+-----------------------------------------------------------------------
+DROP TABLE #templarge
+SELECT * INTO #templarge 
+FROM 
+	(SELECT TOP 5 * 
+	 FROM EmilyLgDataTable 
+	 ORDER BY NEWID()) d
+SELECT * FROM #templarge 
+
+SELECT A.* FROM #templarge AS A
+CROSS JOIN #templarge AS B
+CROSS JOIN #templarge AS C
+CROSS JOIN #templarge AS D
+
+INSERT INTO EmilyLgDataTable (Name, Address, City, State, Birthdate)
+SELECT Name, Address, City, State, Birthdate FROM #templarge
+
+SELECT Name, Address, City, State, Birthdate, COUNT(*)  AS 'duplicate records'
+FROM EmilyLgDataTable l 
+GROUP BY Name, Address, City, State, Birthdate
+HAVING (COUNT(*) > 1)
+
+WITH delete_cte AS 
+(
+  SELECT name, 
+		ROW_NUMBER() OVER 
+				(PARTITION BY 
+					Name, Address, City, State, Birthdate
+				 ORDER BY name
+			     )
+		AS rownumber
+  FROM EmilyLgDataTable   WHERE name = 'Bette Sparks'
+)
+
+DELETE delete_cte WHERE rownumber = 2;
+
+SELECT COUNT(*) FROM EmilyLgDataTable
+
+
+
+
+
+
+
+
+-----------------------------------------------------------------------
+-----------------------------------------------------------------------
+-----------------------------------------------------------------------
+---------GENERATING 27 RANDOM RECORDS----------------------------------
+-------Takes ~ no seconds----------------------------------------------
+
+BEGIN
+	DROP TABLE #firstname2									
+	CREATE TABLE #firstname2                 
+		(firstname VARCHAR(50), listnumber INT IDENTITY(1,1))
+	INSERT INTO #firstname2 (firstname)			
+	SELECT fname FROM randomfnamelist ORDER BY NEWID()																									
+
+	DROP TABLE #lastname2								
+	CREATE TABLE #lastname2
+		(lastname VARCHAR(50),listnumber INT IDENTITY(1,1))
+			INSERT INTO #lastname2 (lastname)				
+			SELECT lname FROM randomlnamelist ORDER BY NEWID()									
+
+	DROP TABLE #firstlastname2
+	SELECT * INTO #firstlastname2									
+	FROM
+		(SELECT f.firstname + ' ' + l.lastname AS name 
+		,f.listnumber
+		 FROM #firstname2 f JOIN #lastname2 l				
+		 ON l.listnumber = f.listnumber) d
+
+							
+
+---------------------DONE WITH NAME--------------------------------
+-----
+-----
+---------------------STREET ADDRESS----------------------------- 
+---Generating street number + street address takes 13 seconds.
+---Generate street name from list of random names (randomstreetnames)
+
+	DROP TABLE #streetaddy2								
+	CREATE TABLE #streetaddy2               
+		(streetname VARCHAR(50), listnumber INT IDENTITY(1,1))   
+		INSERT INTO #streetaddy2 (streetname)			
+		SELECT streetname FROM randomstreetnames ORDER BY NEWID()														
+ 
+	DROP TABLE #streetnumber2									
+	CREATE TABLE #streetnumber2
+		(streetnumber VARCHAR(6),listnumber INT IDENTITY(1,1))
+	     
+	DECLARE @Counter7 INT = 0										
+	WHILE @Counter7 < 27										
+		BEGIN
+			INSERT INTO #streetnumber2 (streetnumber)				
+			VALUES (CAST(ROUND(RAND()*10000,0,0) AS VARCHAR(6))) 	
+			SET @Counter7 = @Counter7 + 1								
+		END
+
+
+	DROP TABLE #address2
+	SELECT * INTO #address2
+	FROM								
+		(SELECT s.streetnumber + ' ' + a.streetname AS address
+			  ,s.listnumber
+		 FROM #streetaddy2 a JOIN #streetnumber2 s				
+		 ON a.listnumber = s.listnumber) d 				
+   			
+---------------------DONE WITH STREET ADDRESS-------------------
+------
+------
+------
+---------------------CITY STATE----------------------------- 
+----GENERATING CITY AND STATE DATA
+	DROP TABLE #citystate2									
+	CREATE TABLE #citystate2 
+	  (cityname VARCHAR(100), stateinitial VARCHAR(2)
+	  ,listnumber INT IDENTITY(1,1))	
+  	
+	DECLARE @Counter8 INT = 0										
+	WHILE @Counter8 < 2										
+		BEGIN
+			INSERT INTO #citystate2 (cityname, stateinitial)
+			SELECT cityname, stateinitial FROM citylist ORDER BY NEWID()			
+			SET @Counter8 = @Counter8 + 1
+		END
+
+---------------------DONE WITH CITY STATE-------------------
+----
+----
+---------------------BIRTHDAY INFO--------------------------
+	DROP TABLE	  #bday2								    			
+	CREATE TABLE  #bday2							
+		(birthday DATE, listnumber INT IDENTITY(1,1))	
+			
+	DECLARE  @Counter9 INT = 0
+			 ,@MaxRecordCount3 INT = 27					
+	WHILE @Counter9 < @MaxRecordCount3								
+		BEGIN
+			INSERT INTO #bday2
+			SELECT DATEADD(											
+					 d												
+					,ROUND(											 
+						DATEDIFF(d,'1950-01-01','2000-12-31')							
+						*RAND(), 0	)																															
+						,'1940-01-01') AS  birthday				
+			SET @Counter9 = @Counter9 + 1
+		END
+
+
+---------------------DONE WITH CITY STATE-------------------
+----
+----
+---------------------COMBINE ALL INFO IN ONE TABLE----------
+	DROP TABLE #combinedata2
+	SELECT * INTO #combinedata2 
+		FROM 
+			(SELECT f.name AS 'Name'
+			,address AS 'Address' 
+			,c.cityname AS 'City'
+			,c.stateinitial AS 'State'
+			,b.birthday  AS 'Birthdate'
+  
+	  FROM #firstlastname2 f 
+		JOIN #address2 s ON f.listnumber=s.listnumber
+		JOIN #citystate2 c ON c.listnumber = f.listnumber
+		JOIN #bday2 b ON b.listnumber = f.listnumber
+			) d
+
+	DROP TABLE EmilySmDataTable
+	SELECT * INTO EmilySmDataTable FROM #combinedata2
+END
+
+-----------------------------------------------------------------------
+-----------------------------------------------------------------------
+---NOW, ADD RANDOM DUPLICATE RECORDS.  FIND DUPLICATE RECORDS. DELETE DUPLICATE RECORDS.
+-----------------------------------------------------------------------
+
+
+
+DROP TABLE #tempsmall
+SELECT * INTO #tempsmall 
+FROM 
+	(SELECT TOP 5 * 
+	 FROM EmilySmDataTable 
+	 ORDER BY NEWID()) d
+	 DROP TABLE #temporaryrepeats
+SELECT * INTO #temporaryrepeats FROM (SELECT A.* FROM #tempsmall A
+CROSS JOIN #tempsmall B
+CROSS JOIN #tempsmall C
+CROSS JOIN #tempsmall D) d
+
+SELECT Name, Address, City, State, Birthdate,  COUNT(*)  AS 'duplicate records'
+	FROM #temporaryrepeats
+	GROUP BY Name, Address, City, State, Birthdate
+	HAVING (COUNT(*) > 1
+
+SELECT * INTO #deletethese FROM 
+	(SELECT Name, Address, City, State, Birthdate,  COUNT(*)  AS 'duplicate records'
+	FROM #temporaryrepeats
+	GROUP BY Name, Address, City, State, Birthdate
+	HAVING (COUNT(*) > 1)) d
+
+INSERT INTO EmilySmDataTable
+SELECT * FROM #temporaryrepeats
+
+DELETE FROM EmilySmDataTable
+SELECT Name, Address, City, State, Birthdate,  COUNT(*)  AS 'duplicate records'
+FROM EmilySmDataTable l 
+GROUP BY Name, Address, City, State, Birthdate
+HAVING (COUNT(*) > 1)
+
+WITH delete_cte AS 
+(
+  SELECT name, 
+		ROW_NUMBER() OVER 
+				(PARTITION BY 
+					Name, Address, City, State, Birthdate
+				 ORDER BY name
+			     )
+		AS duplicate
+  FROM EmilySmDataTable
+)
+
+DELETE delete_cte WHERE duplicate = 2;
