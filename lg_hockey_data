@@ -1,0 +1,170 @@
+----GENERATING RANDOM LARGE DATA SET FOR PERFORMANCE TESTING  FOR LARGE TABLE----
+-----by Emily Kading
+----TO ADD name, tix, birthday, stateid, hockeyteam, age, maritalstatus columns takes 50 seconds
+----Compiled lists of random names [randomfnamelist], [randomlnamelist] found online
+----ASSIGN 500,000 names in random order to temptable.. 
+
+----FIRST NAMES AND LAST NAMES GENERATOR TAKES 9 seconds to do both at once ----
+  DROP TABLE #firstnametuesday									----make sure temp table clear for use
+  CREATE TABLE #firstnametuesday                 
+ (firstnametuesday VARCHAR(50), listnumber INT IDENTITY(1,1))   ----create table with 2 columns, 1 for first name, 1 for identity #
+  Declare @Counter1 INT = 0										----set counter = 0 to begin
+  WHILE @Counter1 < 10000										----50 random first names * 10000 = 500000 records     
+	BEGIN
+	 INSERT INTO #firstnametuesday (firstnametuesday)			----Insert into temp table
+	 SELECT fname FROM randomfnamelist ORDER BY NEWID()			----Select names from randomlist ordered randomly by NEWID()
+	 SET @Counter1 = @Counter1 + 1									----Increase the counter by 1
+	END															----End when count = 10000
+
+  DROP TABLE #lastnametuesday									----make sure temp table clear for use
+  CREATE TABLE #lastnametuesday
+ (lastnametuesday VARCHAR(50),listnumber INT IDENTITY(1,1))     ----create table with 2 columns, 1 for last name, 1 for identity #
+  DECLARE @Counter2 INT = 0										----set counter = 0 to begin
+  WHILE @Counter2 < 10000										----50 random last names * 10000 = 500000 records     
+	BEGIN
+	 INSERT INTO #lastnametuesday (lastnametuesday)				----Insert into temp table
+	 SELECT lname FROM randomlnamelist ORDER BY NEWID()			----Select names from randomlist ordered randomly by NEWID()
+	 SET @Counter2 = @Counter2 + 1								----End when count = 10000
+	END
+
+
+----COMBINE THE FIRST AND LAST NAMES INTO ONE FULL NAME IN A NEW COLUMN
+----TOOK 3 seconds to run
+  DROP TABLE #firstlastname
+  SELECT * INTO #firstlastname									----SELECT * INTO to create a new temp table for the combined data
+  FROM
+  (SELECT f.firstnametuesday + ' ' + l.lastnametuesday AS name  ----Combine the columns on their listnumbers to create first/last name combos
+  ,f.listnumber
+   FROM #firstnametuesday f JOIN #lastnametuesday l				
+   ON l.listnumber = f.listnumber) d							---- derived table d
+
+-----GENERATING Large ticket number   
+-----00:11 execution time
+-----SUBSTRING FORMAT... substring(expression, start, length)
+  DROP TABLE #tempticketnumber									----Make sure #tempticketnumber is clear
+  CREATE TABLE #tempticketnumber 
+  (tix CHAR(32), listnumber INT IDENTITY(1,1))					----Create temptable for ticket # and for identity
+  DECLARE @Counter3 INT = 0										----Set counter = 0
+  DECLARE @MaxRecordCount INT = 500000							----Max number of records = 500000
+  WHILE @Counter3 < @MaxRecordCount								----AKA run until counter hits 500000
+	BEGIN
+	INSERT INTO #tempticketnumber
+	SELECT SUBSTRING(CONVERT(varchar(255), NEWID())				----substring expression
+	,0															----substring start
+	,32)														----substring list  
+	SET @Counter3 = @Counter3 + 1
+	END
+
+---GENERATING RANDOM BIRTHDAYS
+---TOOK 11 seconds
+---STRUCTURES:  DATEADD(datepart, number, date)
+---             DATEDIFF(datepart, startdate, enddate)
+  DROP TABLE #tempbdaytable										----make sure #tempbdaytable clear			
+  CREATE TABLE #tempbdaytable								
+	(birthday DATETIME, listnumber INT IDENTITY(1,1))			----create #tempbdaytable with a listnumber
+  DECLARE  @Counter4 INT = 0
+	      ,@MaxRecordCount2 INT = 500000						----Set counter = 0, maxrecord = 500000
+  WHILE @Counter4 < @MaxRecordCount2								----While counter < 500000
+	BEGIN
+	 INSERT INTO #tempbdaytable
+	 SELECT DATEADD(d											----**DATEPART(Day)
+		,ROUND(DATEDIFF(d,										----//datepart(Day)
+		'1980-01-01',											----//startdate   
+		'2017-12-31')											----//enddate
+		* RAND(CHECKSUM(NEWID()))								----**NUMBER
+		, 0)													----**DATE
+		,DATEADD(second											----**DATEPART (second)
+		,CHECKSUM(NEWID())%48000								----**NUMBER
+		, '1960-01-01')) AS  birthday							----**DATE
+	 SET @Counter4 = @Counter4 + 1
+	END
+
+----GENERATING STATE INITIAL DATA
+  DROP TABLE #tempstateinitial									----Make sure #tempstateinitial is clear
+  CREATE TABLE #tempstateinitial 
+  (stateid VARCHAR(2), listnumber INT IDENTITY(1,1))			----Create temp table with 2 columns, stateid and listnumber
+  DECLARE @Counter5 INT = 0										----Set counter = 0
+  WHILE @Counter5 < 10000										----Max 500000 records
+	BEGIN
+	 INSERT INTO #tempstateinitial (stateid)
+	 SELECT stateinitial FROM fiftystates ORDER BY NEWID()		----Select random state id
+	 SET @Counter5 = @Counter5 + 1								----increment counter by 1
+	END
+
+
+----GENERATING FAVORITE HOCKEY TEAM DATA
+  DROP TABLE #temphockeytable									----make sure #temphockeytable is clear
+  CREATE TABLE #temphockeytable 
+  (hockeyteam VARCHAR(100), listnumber INT IDENTITY(1,1))		----create temp table with hockeyteam name, listnumber
+  DECLARE @Counter6 INT = 0										----Set counter = 0
+  WHILE @Counter6 < 16130										----16130 * 31[teamnames] =~ 500000
+	BEGIN
+	 INSERT INTO #temphockeytable (hockeyteam)
+	 SELECT teamname FROM hockeyteam ORDER BY NEWID()			----select random hockey team name from list
+	 SET @Counter6 = @Counter6 + 1
+	END
+
+----GENERATING MARRIED OR SINGLE DATA
+  DROP TABLE #MorS												
+  CREATE TABLE #MorS (mors VARCHAR(1))				
+  INSERT INTO #MorS (mors)
+  VALUES ('m'),
+		 ('s'),
+	     ('d')													----Creating a temp table of 3 possible values, m = married, s = single, d = divorced
+  DROP TABLE #tempmarriedtable									----make sure #tempmarriedtable is clear		
+  CREATE TABLE #tempmarriedtable						
+  (maritalstatus VARCHAR(1), listnumber INT IDENTITY(1,1))		----Create table with 2 columns, marital status and list number	
+  DECLARE @Counter7 INT = 0										----Set Counter = 0
+  WHILE @Counter7 < 166667										----166667 * 3 ~= 500000
+	BEGIN
+	 INSERT INTO #tempmarriedtable
+	 SELECT mors FROM #MorS ORDER BY NEWID()
+	 SET @Counter7 = @Counter7 + 1
+	END
+
+----PUTTING ALL INFO INTO ONE TEMPTABLE
+  DROP TABLE #testlargetable
+  SELECT * INTO #testlargetable 
+  FROM 
+  (SELECT f.name, r.tix, bd.birthday
+  , si.stateid, h.hockeyteam, m.maritalstatus
+  FROM #firstlastname f 
+	JOIN #tempticketnumber r ON f.listnumber=r.listnumber
+	JOIN #tempbdaytable bd ON bd.listnumber = f.listnumber
+	JOIN #tempstateinitial si ON si.listnumber = f.listnumber
+	JOIN #temphockeytable h ON h.listnumber = f.listnumber
+	JOIN #tempmarriedtable m ON m.listnumber = f.listnumber
+) d
+
+  DROP TABLE EmilyLgDataTable
+  SELECT * INTO EmilyLgDataTable FROM #testlargetable
+
+
+----------------------------------------------------------------------------------------------
+-----FINDING AGE FROM BIRTHDATE
+  ALTER TABLE EmilyLgDataTable								
+  ADD Age AS CAST(DATEDIFF(YEAR, birthday, GETDATE()) AS TINYINT)    ----Cast birthday column as 
+
+
+-------------------------------------------
+----ADDING A HASHKEY TO THE DATA
+  ALTER TABLE EmilyLgDataTable
+  ADD HashKey  char(32)
+
+  UPDATE EmilyLgDataTable
+  SET [HashKey] = 
+  CONVERT(char(32)
+		, HASHBYTES('MD5',  UPPER(ISNULL(CAST(LTRIM(RTRIM(name)) AS VARCHAR(100)),'')) + '|'
+						+ UPPER(ISNULL(CAST(LTRIM(RTRIM(tix)) AS VARCHAR(100)),'')) + '|'
+						+ UPPER(ISNULL(CAST(LTRIM(RTRIM(birthday)) AS VARCHAR(100)),'')) + '|'
+						+ UPPER(ISNULL(CAST(LTRIM(RTRIM(age)) AS VARCHAR(100)),'')) + '|'
+						+ UPPER(ISNULL(CAST(LTRIM(RTRIM(maritalstatus)) AS VARCHAR(100)),'')) + '|'
+						+ UPPER(ISNULL(CAST(LTRIM(RTRIM(stateid)) AS VARCHAR(100)),'')) + '|'													
+						+ UPPER(ISNULL(CAST(LTRIM(RTRIM(hockeyteam)) AS VARCHAR(100)), ''))
+					)
+								
+		, 2) 
+
+
+  SELECT *FROM EmilyLgDataTable
+
